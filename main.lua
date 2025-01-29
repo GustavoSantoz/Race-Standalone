@@ -62,27 +62,39 @@ local function startRace()
     startCountdown()
 end
 
+-- Função para alterar a cor de um checkpoint para azul
+local function markCheckpointAsPassed(checkpoint)
+    -- Altera a cor do blip para azul (cor 3)
+    SetBlipColour(checkpoint.blip, 3)
+    -- Remove o checkpoint 3D verde
+    if checkpoint.checkpoint then
+        DeleteCheckpoint(checkpoint.checkpoint)
+    end
+    -- Opcional: Cria um novo checkpoint 3D azul (se desejar)
+    -- checkpoint.checkpoint = create3DCheckpoint(checkpoint.x, checkpoint.y, checkpoint.z + 1.0, true)
+end
+
 -- Função para criar um checkpoint 3D visível
-local function create3DCheckpoint(x, y, z)
-    local checkpoint = CreateCheckpoint(4, -- Tipo de checkpoint (4 = cilindro com seta)
-    x, y, z, -- Posição
-    x, y, z, -- Direção (não relevante para cilindro)
-    CHECKPOINT_3D_SIZE, -- Tamanho
-    CHECKPOINT_3D_COLOR.r, CHECKPOINT_3D_COLOR.g, CHECKPOINT_3D_COLOR.b, CHECKPOINT_3D_COLOR.a, -- Cor
-    100, -- Alpha
-    0 -- "Reserved"
-    )
+local function create3DCheckpoint(x, y, z, isPassed)
+    local color = isPassed and {
+        r = 0,
+        g = 0,
+        b = 255,
+        a = 100
+    } or CHECKPOINT_3D_COLOR
+    local checkpoint = CreateCheckpoint(4, x, y, z, x, y, z, CHECKPOINT_3D_SIZE, color.r, color.g, color.b, color.a,
+        100, 0)
     return checkpoint
 end
 
--- Função para mostrar um blip no mapa
-local function showCheckpointBlip(x, y, z)
+-- Função para mostrar um blip no mapa (ajustada para aceitar cor personalizada)
+local function showCheckpointBlip(x, y, z, isPassed)
     local blip = AddBlipForCoord(x, y, z)
     SetBlipSprite(blip, CHECKPOINT_BLIP_SPRITE)
-    SetBlipColour(blip, CHECKPOINT_BLIP_COLOR)
+    SetBlipColour(blip, isPassed and 3 or CHECKPOINT_BLIP_COLOR) -- 3 = Azul
     SetBlipScale(blip, CHECKPOINT_BLIP_SCALE)
     BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString("Checkpoint")
+    AddTextComponentString(isPassed and "Checkpoint Passado" or "Checkpoint")
     EndTextCommandSetBlipName(blip)
     return blip
 end
@@ -98,9 +110,9 @@ local function addCheckpoint(x, y, z)
         x = x,
         y = y,
         z = z,
-        blip = showCheckpointBlip(x, y, z),
-        checkpoint = create3DCheckpoint(x, y, z + 1.0), -- +1.0 para flutuar acima do chão
-        passed = false -- Marca o checkpoint como não passado
+        blip = showCheckpointBlip(x, y, z, false), -- Cor inicial: verde
+        checkpoint = create3DCheckpoint(x, y, z + 1.0, false), -- Cor inicial: verde
+        passed = false
     }
     table.insert(checkpoints, checkpoint)
     TriggerServerEvent('race:addCheckpoint', checkpoint)
@@ -159,13 +171,12 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Thread para acompanhar o progresso dos checkpoints
+-- Thread para acompanhar o progresso dos checkpoints (ajustada)
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(500)
 
         if raceBuilding then
-            -- Não faz nada se a corrida ainda está sendo construída
             goto continue
         end
 
@@ -173,18 +184,18 @@ Citizen.CreateThread(function()
         local currentCheckpoint = checkpoints[currentCheckpointIndex]
 
         if currentCheckpoint and not currentCheckpoint.passed and isPlayerNearCheckpoint(playerPed, currentCheckpoint) then
-            currentCheckpoint.passed = true -- Marca o checkpoint como passado
-            currentCheckpointIndex = currentCheckpointIndex + 1 -- Avança para o próximo checkpoint
+            currentCheckpoint.passed = true
+            markCheckpointAsPassed(currentCheckpoint) -- Altera para azul
+            currentCheckpointIndex = currentCheckpointIndex + 1
 
             if checkpoints[currentCheckpointIndex] then
-                -- Notifica o servidor e atualiza o waypoint
                 TriggerServerEvent('race:checkpointPassed', currentCheckpointIndex)
                 SetNewWaypoint(checkpoints[currentCheckpointIndex].x, checkpoints[currentCheckpointIndex].y)
                 print("Próximo checkpoint: ", checkpoints[currentCheckpointIndex].x,
                     checkpoints[currentCheckpointIndex].y)
             else
                 print("Todos os checkpoints passados! Corrida concluída.")
-                resetRace() -- Reseta o estado da corrida para a próxima
+                resetRace()
             end
         end
 
