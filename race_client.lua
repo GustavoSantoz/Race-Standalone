@@ -54,7 +54,8 @@ local function addCheckpoint(x, y, z)
         y = y,
         z = z,
         blip = showCheckpointBlip(x, y, z),
-        checkpoint = create3DCheckpoint(x, y, z + 1.0) -- +1.0 para flutuar acima do chão
+        checkpoint = create3DCheckpoint(x, y, z + 1.0), -- +1.0 para flutuar acima do chão
+        passed = false -- Mark checkpoint as not passed
     }
     table.insert(checkpoints, checkpoint)
     TriggerServerEvent('race:addCheckpoint', checkpoint)
@@ -143,8 +144,8 @@ Citizen.CreateThread(function()
         local playerPed = PlayerPedId()
         local currentCheckpoint = checkpoints[currentCheckpointIndex]
 
-        if currentCheckpoint and isPlayerNearCheckpoint(playerPed, currentCheckpoint) then
-            removeCheckpoint(currentCheckpointIndex) -- Remove the current checkpoint
+        if currentCheckpoint and not currentCheckpoint.passed and isPlayerNearCheckpoint(playerPed, currentCheckpoint) then
+            currentCheckpoint.passed = true -- Mark the checkpoint as passed
             currentCheckpointIndex = currentCheckpointIndex + 1 -- Move to the next checkpoint
 
             if checkpoints[currentCheckpointIndex] then
