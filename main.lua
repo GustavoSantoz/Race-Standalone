@@ -2,6 +2,65 @@
 local checkpoints = {} -- Lista de checkpoints
 local currentCheckpointIndex = 1 -- Índice do checkpoint atual
 local raceBuilding = true -- Indica se a corrida está sendo construída
+local isRaceStarting = false -- Controla se a contagem regressiva está ativa
+
+-- Função para exibir a contagem regressiva
+local function startCountdown()
+    isRaceStarting = true
+
+    -- Contagem regressiva: 3, 2, 1, GO!
+    for i = 3, 1, -1 do
+        -- Exibe o número grande no centro da tela
+        BeginTextCommandDisplayText("STRING")
+        AddTextComponentSubstringPlayerName(tostring(i))
+        SetTextFont(4) -- Fonte (use 0 para fonte padrão do GTA)
+        SetTextScale(5.0, 5.0) -- Tamanho do texto
+        SetTextColour(255, 255, 255, 255) -- Cor branca
+        SetTextOutline() -- Borda para melhor visibilidade
+        SetTextCentre(true) -- Centralizado
+        EndTextCommandDisplayText(0.5, 0.5) -- Posição (centro da tela)
+        PlaySoundFrontend(-1, "3_2_1", "HUD_MINI_GAME_SOUNDSET", true) -- Som da contagem
+        Citizen.Wait(1000) -- Espera 1 segundo
+    end
+
+    -- Exibe "GO!"
+    BeginTextCommandDisplayText("STRING")
+    AddTextComponentSubstringPlayerName("~g~GO!")
+    SetTextFont(4)
+    SetTextScale(5.0, 5.0)
+    SetTextColour(0, 255, 0, 255) -- Cor verde
+    SetTextOutline()
+    SetTextCentre(true)
+    EndTextCommandDisplayText(0.5, 0.5)
+    PlaySoundFrontend(-1, "GO", "HUD_MINI_GAME_SOUNDSET", true) -- Som de "GO"
+    Citizen.Wait(1000) -- Mantém o "GO" na tela por 1 segundo
+
+    -- Inicia a corrida
+    isRaceStarting = false
+    raceBuilding = false
+
+    -- Define o primeiro checkpoint
+    if checkpoints[currentCheckpointIndex] then
+        SetNewWaypoint(checkpoints[currentCheckpointIndex].x, checkpoints[currentCheckpointIndex].y)
+        print("Corrida iniciada!")
+    end
+end
+
+-- Função para iniciar a corrida
+local function startRace()
+    if isRaceStarting then
+        print("A corrida já está prestes a começar!")
+        return
+    end
+
+    if #checkpoints < 2 then
+        print("Você precisa de pelo menos 2 checkpoints para iniciar a corrida!")
+        return
+    end
+
+    -- Inicia a contagem regressiva
+    startCountdown()
+end
 
 -- Função para criar um checkpoint 3D visível
 local function create3DCheckpoint(x, y, z)
@@ -69,23 +128,6 @@ local function isPlayerNearCheckpoint(playerPed, checkpoint)
     local playerCoords = GetEntityCoords(playerPed)
     local distance = Vdist(playerCoords.x, playerCoords.y, playerCoords.z, checkpoint.x, checkpoint.y, checkpoint.z)
     return distance < CHECKPOINT_PROXIMITY_THRESHOLD
-end
-
--- Função para iniciar a corrida
-local function startRace()
-    if #checkpoints < 2 then
-        print("Você precisa de pelo menos 2 checkpoints para iniciar a corrida!")
-        return
-    end
-
-    raceBuilding = false
-    currentCheckpointIndex = 1
-
-    -- Define o primeiro waypoint
-    if checkpoints[currentCheckpointIndex] then
-        SetNewWaypoint(checkpoints[currentCheckpointIndex].x, checkpoints[currentCheckpointIndex].y)
-        print("Corrida iniciada! Primeiro checkpoint definido.")
-    end
 end
 
 -- Função para resetar o estado da corrida
